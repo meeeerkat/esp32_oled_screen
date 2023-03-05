@@ -8,8 +8,9 @@
 
 enum RESOLUTION {RES_128x32, RES_128x64};
 
-#define OLED_SCREEN_128x32_BUFF_SIZE 128*32/8
-#define OLED_SCREEN_128x64_BUFF_SIZE 128*64/8
+// DO NOT USE DIVISIONS !!!!!
+#define OLED_SCREEN_128x32_BUFF_SIZE 128*4 // 128*32 bits
+#define OLED_SCREEN_128x64_BUFF_SIZE 128*8 // 128*64 bits
 
 typedef struct {
   i2c_port_t i2c_num;

@@ -19,7 +19,7 @@ static esp_err_t i2c_master_init(uint8_t sda, uint8_t scl, i2c_port_t i2c_num) {
     .sda_pullup_en = true,
     .scl_io_num = scl,
     .scl_pullup_en = true,
-    .master.clk_speed = 5000, // 100Hz because internal pullups resistors are too small, line is pulled up too slowly
+    .master.clk_speed = 1000000,
     .clk_flags = 0
   };
   i2c_param_config(i2c_num, &conf);
@@ -27,7 +27,85 @@ static esp_err_t i2c_master_init(uint8_t sda, uint8_t scl, i2c_port_t i2c_num) {
 }
 
 
-static void i2c_master_write_slave(i2c_port_t i2c_num, uint8_t device_addr, uint8_t *data, size_t size) {
+const uint8_t INIT_COMMANDS[] = {
+
+  0x00,
+
+  // Turn off
+  0xAE,
+
+  // Fundamental settings
+  0x81,
+  0x7F,
+
+  0xA4,
+
+  0xA6,
+
+  // Deactivate scrolling
+  0x2E,
+
+  // Addressing settings
+  0x00,
+
+  0x10,
+
+  0x20,
+  0,
+
+  0x21,
+  0,
+  127,
+
+  0x22,
+  0,
+  3,
+
+  0xB0,
+
+  // Hardware settings
+  0x40,
+
+  0xA0,
+
+  0xA8,
+  31,
+
+  0xC0,
+
+  0xD3,
+  0,
+
+  0xDA,
+  0b00001000,
+
+  // Time settings
+  0xD5,
+  0x80,
+
+  0xD9,
+  0x22,
+
+  0xDB,
+  0x20,
+
+  // Charge pump settings
+  0x8D,
+  0x14,
+
+
+
+  // Turn on
+  0xAF,
+
+
+  // Deactivate scrolling
+  0x2E,
+};
+const size_t INIT_COMMANDS_SIZE = sizeof(INIT_COMMANDS);
+
+
+static void i2c_master_write_slave(i2c_port_t i2c_num, uint8_t device_addr, uint8_t *data, size_t data_size) {
   int ret;
   i2c_cmd_handle_t cmd;
  
@@ -35,60 +113,52 @@ static void i2c_master_write_slave(i2c_port_t i2c_num, uint8_t device_addr, uint
   i2c_master_start(cmd);
   // Slave addr + write bit
   i2c_master_write_byte(cmd, (device_addr << 1) | I2C_MASTER_WRITE, true);
-  // Control bytes
-  //i2c_master_write_byte(cmd, 0x00, true);
-  i2c_master_write_byte(cmd, 0x8D, true);
-  i2c_master_write_byte(cmd, 0x14, true); 
-  i2c_master_write_byte(cmd, 0xAF, true);
-  i2c_master_write_byte(cmd, 0xA5, true);
+
+  // Initialisation control bytes (See page 64 of datasheet)
+  i2c_master_write(cmd, INIT_COMMANDS, INIT_COMMANDS_SIZE, true);
+
   i2c_master_stop(cmd);
-  ret = i2c_master_cmd_begin(i2c_num, cmd, 1000);
+  ret = i2c_master_cmd_begin(i2c_num, cmd, 10000);
   printf("ret1= %x\n", ret);
   i2c_cmd_link_delete(cmd);
 
-  vTaskDelay(pdMS_TO_TICKS(1000));
 
-  return;
-  cmd = i2c_cmd_link_create();
-  i2c_master_start(cmd);
-  // Slave addr + write bit
-  i2c_master_write_byte(cmd, (device_addr << 1) | I2C_MASTER_WRITE, true);
-  // Control byte
-  i2c_master_write_byte(cmd, 0xA4, true);
-  i2c_master_stop(cmd);
-  ret = i2c_master_cmd_begin(i2c_num, cmd, 1000);
-  printf("ret2= %x\n", ret);
-  i2c_cmd_link_delete(cmd);
+  vTaskDelay(pdMS_TO_TICKS(100));
+
 
   cmd = i2c_cmd_link_create();
   i2c_master_start(cmd);
   // Slave addr + write bit
   i2c_master_write_byte(cmd, (device_addr << 1) | I2C_MASTER_WRITE, true);
-  // Control byte
-  i2c_master_stop(cmd);
-  ret = i2c_master_cmd_begin(i2c_num, cmd, 1000);
-  printf("ret3= %x\n", ret);
-  i2c_cmd_link_delete(cmd);
 
-  cmd = i2c_cmd_link_create();
-  i2c_master_start(cmd);
-  // Slave addr + write bit
-  i2c_master_write_byte(cmd, (device_addr << 1) | I2C_MASTER_WRITE, true);
-  // Control byte
-  i2c_master_stop(cmd);
-  ret = i2c_master_cmd_begin(i2c_num, cmd, 1000);
-  printf("ret4= %x\n", ret);
-  i2c_cmd_link_delete(cmd);
-
-  cmd = i2c_cmd_link_create();
-  i2c_master_start(cmd);
+  // set data
   i2c_master_write_byte(cmd, 0b01000000, true);
-  // Data bytes
-  i2c_master_write(cmd, data, size, true);
+  i2c_master_write(cmd, data, data_size, true);
+
   i2c_master_stop(cmd);
-  ret = i2c_master_cmd_begin(i2c_num, cmd, 1000);
-  printf("ret2= %x\n", ret);
+  ret = i2c_master_cmd_begin(i2c_num, cmd, 10000);
+  printf("ret1= %x\n", ret);
   i2c_cmd_link_delete(cmd);
+
+
+  vTaskDelay(pdMS_TO_TICKS(3000));
+
+
+  cmd = i2c_cmd_link_create();
+  i2c_master_start(cmd);
+  // Slave addr + write bit
+  i2c_master_write_byte(cmd, (device_addr << 1) | I2C_MASTER_WRITE, true);
+
+  // clear
+  i2c_master_write_byte(cmd, 0x00, true);
+  i2c_master_write_byte(cmd, 0xAE, true);
+
+  i2c_master_stop(cmd);
+  ret = i2c_master_cmd_begin(i2c_num, cmd, 10000);
+  printf("ret1= %x\n", ret);
+  i2c_cmd_link_delete(cmd);
+
+
 }
 
 void oled_screen__init(oled_screen_t* os, uint8_t sda, uint8_t scl, i2c_port_t i2c_num, enum RESOLUTION res) {
