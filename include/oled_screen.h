@@ -21,6 +21,7 @@ typedef struct {
 } oled_screen_t;
 
 extern void oled_screen__init(oled_screen_t* sr, uint8_t sda, uint8_t scl, i2c_port_t i2c_num, enum RESOLUTION res);
+extern void oled_screen__off(oled_screen_t* os);
 extern uint16_t oled_screen__get_buff_size(oled_screen_t* os);
 extern void oled_screen__write(oled_screen_t* os, uint8_t* buff);
 
