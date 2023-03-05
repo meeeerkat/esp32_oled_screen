@@ -82,16 +82,17 @@ const uint8_t INIT_COMMANDS[] = {
   0x8D,
   0x14,
 
-
-
-  // Turn on
-  0xAF,
-
-
   // Deactivate scrolling
   0x2E,
 };
 const size_t INIT_COMMANDS_SIZE = sizeof(INIT_COMMANDS);
+
+
+const uint8_t ON_COMMANDS[] = {
+  0x00,
+  0xAF
+};
+const size_t ON_COMMANDS_SIZE = sizeof(ON_COMMANDS);
 
 const uint8_t OFF_COMMANDS[] = {
   0x00,
@@ -127,8 +128,7 @@ static void write(i2c_port_t i2c_num, uint8_t device_addr, const uint8_t *payloa
   i2c_master_write(cmd, payload, payload_size, true);
 
   i2c_master_stop(cmd);
-  int ret = i2c_master_cmd_begin(i2c_num, cmd, 10000);
-  printf("ret= %x\n", ret);
+  i2c_master_cmd_begin(i2c_num, cmd, 10000);
   i2c_cmd_link_delete(cmd);
 }
 
@@ -143,8 +143,7 @@ static void write_data(i2c_port_t i2c_num, uint8_t device_addr, const uint8_t *d
   i2c_master_write(cmd, data, data_size, true);
 
   i2c_master_stop(cmd);
-  int ret = i2c_master_cmd_begin(i2c_num, cmd, 10000);
-  printf("ret= %x\n", ret);
+  i2c_master_cmd_begin(i2c_num, cmd, 10000);
   i2c_cmd_link_delete(cmd);
 }
 
@@ -172,6 +171,9 @@ void oled_screen__init(oled_screen_t* os, uint8_t sda, uint8_t scl, i2c_port_t i
   write(os->i2c_num, os->address, INIT_COMMANDS, INIT_COMMANDS_SIZE);
 }
 
+void oled_screen__on(oled_screen_t* os) {
+  write(os->i2c_num, os->address, ON_COMMANDS, ON_COMMANDS_SIZE);
+}
 void oled_screen__off(oled_screen_t* os) {
   write(os->i2c_num, os->address, OFF_COMMANDS, OFF_COMMANDS_SIZE);
 }
@@ -183,5 +185,4 @@ uint16_t oled_screen__get_buff_size(oled_screen_t* os) {
 
 void oled_screen__write(oled_screen_t* os, uint8_t* buff) {
   write_data(os->i2c_num, os->address, buff, os->buff_size);
-  printf("HERE\n");
 }
